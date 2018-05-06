@@ -41,11 +41,13 @@ private:
   float throttle_;
   float steering_;
 
+  bool state_changed_;
+
   void ProcessCommandByte(uint8_t data);
   void ProcessCommandLine(char* line);
   CommandResult ProcessCommandD(char* line);
   CommandResult ProcessCommandI(char* line);
-  CommandResult ProcessCommandM(char* line);
+  CommandResult ProcessCommandL(char* line);
   CommandResult ProcessCommandR(char* line);
   CommandResult ProcessCommandS(char* line);
   CommandResult ProcessCommandT(char* line);

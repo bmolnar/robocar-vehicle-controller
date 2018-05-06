@@ -5,7 +5,8 @@
 VehicleController::VehicleController()
   : servo_motor_pin_(9), servo_steering_pin_(10), cmdbufpos_(0),
     timeout_ms_(1000), max_throttle_(1.0f),
-    last_command_ts_(0), running_(false), throttle_(0.0f), steering_(0.0f) {
+    last_command_ts_(0), running_(false), throttle_(0.0f), steering_(0.0f),
+    state_changed_(true) {
 }
 void VehicleController::setup() {
   servo_motor_.attach(servo_motor_pin_);
@@ -20,39 +21,30 @@ void VehicleController::loop() {
     }
   }
 
-  // check for timeout
+  // check for command timeout
   unsigned long curr_ts = millis();
   if (curr_ts > (last_command_ts_ + timeout_ms_)) {
     // timeout exceeded, halt system
     running_ = false;
-  }
-
-  // set throttle to zero if not running
-  if (!running_) {
     throttle_ = 0.0f;
+    state_changed_ = true;
   }
 
-  // update motor and steering servo values
-  float motor_val_f = 90.0f + (90.0f * throttle_);
-  int motor_val_i = (int) motor_val_f;
-  if (motor_val_i < 0) {
-    motor_val_i = 0;
-  }
-  if (motor_val_i > 180) {
-    motor_val_i = 180;
-  }
-  servo_motor_.write(motor_val_i);
+  // update output values if state changed
+  if (state_changed_) {
+    // write motor servo value to output pin
+    float motor_val_f = 90.0f + (90.0f * throttle_);
+    int motor_val_i = constrain((int) motor_val_f, 0, 180);
+    servo_motor_.write(motor_val_i);
 
+    // write steering servo value to output pin
+    float steering_val_f = 90.0f + steering_;
+    int steering_val_i = constrain((int) steering_val_f, 0, 180);
+    servo_steering_.write(steering_val_i);
 
-  float steering_val_f = 90.0f + steering_;
-  int steering_val_i = (int) steering_val_f;
-  if (steering_val_i < 0) {
-    steering_val_i = 0;
+    // reset state
+    state_changed_ = false;
   }
-  if (steering_val_i > 180) {
-    steering_val_i = 180;
-  }
-  servo_steering_.write(steering_val_i);
 }
 CommandResult VehicleController::ProcessCommandD(char* line) {
   char* argp = &line[1];
@@ -70,7 +62,7 @@ CommandResult VehicleController::ProcessCommandD(char* line) {
 CommandResult VehicleController::ProcessCommandI(char* line) {
   Serial.print("D=");
   Serial.print(timeout_ms_);
-  Serial.print(", M=");
+  Serial.print(", L=");
   Serial.print(max_throttle_);
   Serial.print(", R=");
   Serial.print(running_);
@@ -81,7 +73,7 @@ CommandResult VehicleController::ProcessCommandI(char* line) {
   Serial.println();
   return VC_OK;
 }
-CommandResult VehicleController::ProcessCommandM(char* line) {
+CommandResult VehicleController::ProcessCommandL(char* line) {
   char* argp = &line[1];
 
   // check if numeric arg
@@ -102,6 +94,7 @@ CommandResult VehicleController::ProcessCommandR(char* line) {
   running_ = true;
   throttle_ = 0.0f;
   steering_ = 0.0f;
+  state_changed_ = true;
   last_command_ts_ = millis();
   return VC_OK;
 }
@@ -129,6 +122,7 @@ CommandResult VehicleController::ProcessCommandS(char* line) {
   }
   // update state
   steering_ = minus ? -decval : decval;
+  state_changed_ = true;
   return VC_OK;
 }
 CommandResult VehicleController::ProcessCommandT(char* line) {
@@ -158,6 +152,7 @@ CommandResult VehicleController::ProcessCommandT(char* line) {
   }
   // update state
   throttle_ = minus ? -decval : decval;
+  state_changed_ = true;
   last_command_ts_ = millis();
   return VC_OK;
 }
@@ -194,8 +189,8 @@ void VehicleController::ProcessCommandLine(char* line) {
   case 'I':
     result = ProcessCommandI(line);
     break;
-  case 'M':
-    result = ProcessCommandM(line);
+  case 'L':
+    result = ProcessCommandL(line);
     break;
   case 'R':
     result = ProcessCommandR(line);
