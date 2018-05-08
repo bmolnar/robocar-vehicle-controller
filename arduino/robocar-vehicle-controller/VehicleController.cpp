@@ -4,13 +4,13 @@
 
 VehicleController::VehicleController()
   : servo_motor_pin_(9), servo_steering_pin_(10), cmdbufpos_(0),
-    timeout_ms_(1000), max_throttle_(1.0f),
+    timeout_ms_(1000), max_throttle_(5.0f),
     last_command_ts_(0), running_(false), throttle_(0.0f), steering_(0.0f),
     state_changed_(true) {
 }
 void VehicleController::setup() {
   servo_motor_.attach(servo_motor_pin_);
-  servo_steering_.attach(servo_steering_pin_);
+  servo_steering_.attach(servo_steering_pin_, 1000, 2000);
 }
 void VehicleController::loop() {
   // process incoming data
@@ -33,7 +33,7 @@ void VehicleController::loop() {
   // update output values if state changed
   if (state_changed_) {
     // write motor servo value to output pin
-    float motor_val_f = 90.0f + (90.0f * throttle_);
+    float motor_val_f = 90.0f + (90.0f * throttle_ / 100.0f);
     int motor_val_i = constrain((int) motor_val_f, 0, 180);
     servo_motor_.write(motor_val_i);
 
@@ -83,7 +83,7 @@ CommandResult VehicleController::ProcessCommandL(char* line) {
   // get float value
   float decval = String(argp).toFloat();
   // check if within allowed range
-  if (decval < 0.0f || decval > 1.0f) {
+  if (decval < 0.0f || decval > 100.0f) {
     return VC_INVALID_PARAM;
   }
   // update value
@@ -139,7 +139,7 @@ CommandResult VehicleController::ProcessCommandT(char* line) {
   }
   // get float value
   float decval = String(argp).toFloat();
-  if (decval < 0.0f || decval > 1.0f) {
+  if (decval < 0.0f || decval > 100.0f) {
     return VC_INVALID_PARAM;
   }
   // bounded by throttle max
@@ -168,7 +168,7 @@ void VehicleController::ProcessCommandByte(uint8_t udata) {
     } else {
       // no space left in buffer
     }
-  } else if (cdata == '\n') {
+  } else if (cdata == '\r') {
     // got line feed
 
     // append null terminator and process line
