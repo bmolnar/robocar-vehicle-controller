@@ -207,10 +207,11 @@ void VehicleController::ProcessCommandLine(char* line) {
   }
 
   if (result == VC_OK) {
-    Serial.println("OK");
+    Serial.print("OK");
+    Serial.write("\r");
   } else {
     Serial.print("E");
-    Serial.println((int)result);
+    Serial.print((int)result);
+    Serial.write("\r");
   }
-
 }
